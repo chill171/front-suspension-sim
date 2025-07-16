@@ -46,7 +46,7 @@ odefun = @(t, z) [
 % Inline spring force using fork type logic
 spring_force = @(x, t) ...
     strcmp(fork_type, 'coil') * (k * (x - y(t))) + ...
-    strcmp(fork_type, 'air')  * (k1 * (x - y(t)) + k2 * (x - y(t))^3);
+    strcmp(fork_type, 'air')  * (k1 * (x - y(t)) + k2 * (x - y(t)).^3);
 
 %% Simulation
 tspan = [0 5];
@@ -55,11 +55,31 @@ z0 = [0; 0];                     % Initial conditions
 
 x = z(:,1);                      % Suspension displacement
 
+v = z(:,2);                        % Suspension velocity
+a = diff(v) ./ diff(t);           % Suspension acceleration
+t_a = t(1:end-1);                 % Time vector for acceleration
+
+spring_f = spring_force(x, t);             % Spring force over time
+damper_f = c * (v - dy(t));                % Damper force over time
+
+travel_limit = 0.08;                      % 80 mm max travel
+max_travel = max(x) - min(x);            % Peak-to-peak
+bottom_out = any(abs(x) >= travel_limit);
+
+F_total = spring_f + damper_f;   % Net force acting on the suspension
+
+if bottom_out
+    disp('Bottom-out occurred!');
+else
+    disp('No bottom-out.');
+end
+
 %% Export results to CSV
 export = true;
 if export
-    output = table(t, x, 'VariableNames', {'Time_s', 'Displacement_m'});
-    writetable(output, 'suspension_response.csv');
+    output = table(t, x, v, spring_f, damper_f, F_total, ...
+    'VariableNames', {'Time_s', 'Displacement_m', 'Velocity_mps', ...
+                      'SpringForce_N', 'DamperForce_N', 'TotalForce_N'});
 end
 
 %% Plot
@@ -72,4 +92,4 @@ grid on;
 
 hold on
 plot(t, y(t)*1000, '--r', 'LineWidth', 1)
-legend('Suspension Displacement', 'Terrain Input')
+legend('Suspension Displacement', 'Terrain Input');
