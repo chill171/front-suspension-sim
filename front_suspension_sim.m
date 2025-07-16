@@ -8,10 +8,18 @@ m = 20;             % Mass [kg] (fork + partial rider)
 k = 8000;           % Spring constant [N/m]
 c = 1200;           % Damping coefficient [Ns/m]
 
-%% Terrain input (step bump at t=1s)
-y = @(t) 0.05 * (t >= 1);        % 5 cm bump
-dy = @(t) 0;                     % Derivative of step is zero
+%% Terrain Input Type
+input_type = 'sine';  % Options: 'step', 'sine'
 
+switch input_type
+    case 'step'
+        y = @(t) 0.05 * (t >= 1);       % 5 cm step
+        dy = @(t) 0;
+    case 'sine'
+        A = 0.01; f = 2;                % 1 cm amplitude, 2 Hz
+        y = @(t) A * sin(2*pi*f*t);
+        dy = @(t) A * 2*pi*f * cos(2*pi*f*t);
+end
 %% State-space ODE system
 % z = [x; x_dot], where x is suspension displacement
 odefun = @(t, z) [
@@ -26,6 +34,13 @@ z0 = [0; 0];                     % Initial conditions
 
 x = z(:,1);                      % Suspension displacement
 
+%% Export results to CSV
+export = true;
+if export
+    output = table(t, x, 'VariableNames', {'Time_s', 'Displacement_m'});
+    writetable(output, 'suspension_response.csv');
+end
+
 %% Plot
 figure;
 plot(t, x*1000, 'LineWidth', 1.5);
@@ -33,3 +48,7 @@ xlabel('Time [s]');
 ylabel('Displacement [mm]');
 title('Suspension Response to Step Input');
 grid on;
+
+hold on
+plot(t, y(t)*1000, '--r', 'LineWidth', 1)
+legend('Suspension Displacement', 'Terrain Input')
